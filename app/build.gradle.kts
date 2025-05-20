@@ -76,6 +76,7 @@ dependencies {
     implementation ("com.google.android.gms:play-services-location:21.0.1")
     implementation ("com.google.maps.android:maps-compose:2.11.4")
 
+
     // Hilt for DI
     implementation ("com.google.dagger:hilt-android:2.49")  // Corrected: Not a platform dependency
     kapt ("com.google.dagger:hilt-android-compiler:2.49")  // Keep kapt for the compiler
@@ -83,4 +84,6 @@ dependencies {
 
     // Kotlin Coroutines
     implementation ("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+
+
 }
