@@ -127,4 +127,47 @@ class AuthViewModel : ViewModel() {
 
 
     fun getCurrentUser(): FirebaseUser? = auth.currentUser
+
+    // Nueva función para obtener datos del usuario
+    fun getUserData(
+        uid: String,
+        onResult: (User) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        firestore.collection("users").document(uid)
+            .get()
+            .addOnSuccessListener { doc ->
+                val user = doc.toObject(User::class.java)
+                if (user != null) onResult(user)
+                else onError("Usuario no encontrado")
+            }
+            .addOnFailureListener {
+                onError(it.message ?: "Error al cargar usuario")
+            }
+    }
+
+    // Nueva función para actualizar datos del usuario
+    fun updateUserData(
+        user: User,
+        newPassword: String?,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        firestore.collection("users").document(user.uid)
+            .set(user)
+            .addOnSuccessListener {
+                if (!newPassword.isNullOrBlank()) {
+                    FirebaseAuth.getInstance().currentUser?.updatePassword(newPassword)
+                        ?.addOnSuccessListener { onSuccess() }
+                        ?.addOnFailureListener {
+                            onError(it.message ?: "No se pudo cambiar la contraseña")
+                        }
+                } else {
+                    onSuccess()
+                }
+            }
+            .addOnFailureListener {
+                onError(it.message ?: "Error al actualizar datos")
+            }
+    }
 }

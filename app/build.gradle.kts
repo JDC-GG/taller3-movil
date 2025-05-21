@@ -64,6 +64,7 @@ dependencies {
     implementation ("com.google.firebase:firebase-auth-ktx")
     implementation ("com.google.firebase:firebase-firestore-ktx")
     implementation ("com.google.firebase:firebase-storage-ktx")
+    implementation ("androidx.compose.material:material-icons-extended:1.6.5")
 
     // Jetpack Compose
     implementation ("androidx.activity:activity-compose:1.8.2")
