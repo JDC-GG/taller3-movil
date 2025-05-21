@@ -75,5 +75,56 @@ class AuthViewModel : ViewModel() {
         _authState.value = null
     }
 
+    fun getUserData(uid: String, callback: (User?, String?) -> Unit) {
+        firestore.collection("users").document(uid).get()
+            .addOnSuccessListener { document ->
+                if (document.exists()) {
+                    val user = document.toObject(User::class.java)
+                    callback(user, null)
+                } else {
+                    callback(null, "Usuario no encontrado")
+                }
+            }
+            .addOnFailureListener { e ->
+                callback(null, e.message)
+            }
+    }
+
+    fun updateUserProfile(
+        name: String,
+        idNumber: String,
+        phone: String,
+        newPassword: String,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        val currentUser = auth.currentUser
+        if (currentUser == null) {
+            onError("Usuario no autenticado")
+            return
+        }
+
+        val uid = currentUser.uid
+        val updates = mapOf(
+            "name" to name,
+            "idNumber" to idNumber,
+            "phone" to phone
+        )
+
+        firestore.collection("users").document(uid)
+            .update(updates)
+            .addOnSuccessListener {
+                if (newPassword.isNotBlank()) {
+                    currentUser.updatePassword(newPassword)
+                        .addOnSuccessListener { onSuccess() }
+                        .addOnFailureListener { e -> onError(e.message ?: "Error al actualizar contraseña") }
+                } else {
+                    onSuccess()
+                }
+            }
+            .addOnFailureListener { e -> onError(e.message ?: "Error al actualizar perfil") }
+    }
+
+
     fun getCurrentUser(): FirebaseUser? = auth.currentUser
 }

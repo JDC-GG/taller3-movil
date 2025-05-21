@@ -14,9 +14,9 @@ import androidx.navigation.compose.rememberNavController
 import com.example.taller3.ui.screens.LoginScreen
 import com.example.taller3.ui.screens.RegisterScreen
 import com.example.taller3.ui.screens.HomeScreen
+import com.example.taller3.ui.screens.EditProfileScreen
 import com.example.taller3.viewmodel.AuthViewModel
 import com.example.taller3.ui.theme.taller3Theme
-
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -55,6 +55,18 @@ class MainActivity : ComponentActivity() {
                                     navController.navigate("login") {
                                         popUpTo("home") { inclusive = true }
                                     }
+                                },
+                                onEditProfile = {
+                                    navController.navigate("editProfile")
+                                }
+                            )
+                        }
+
+                        composable("editProfile") {
+                            EditProfileScreen(
+                                viewModel = authViewModel,
+                                onProfileUpdated = {
+                                    navController.popBackStack()
                                 }
                             )
                         }
