@@ -37,7 +37,8 @@ class AuthViewModel : ViewModel() {
                             name = name,
                             idNumber = idNumber,
                             email = email,
-                            phone = phone
+                            phone = phone,
+                            photoUrl = ""
                         )
                         firestore.collection("users")
                             .document(uid)
@@ -75,99 +76,5 @@ class AuthViewModel : ViewModel() {
         _authState.value = null
     }
 
-    fun getUserData(uid: String, callback: (User?, String?) -> Unit) {
-        firestore.collection("users").document(uid).get()
-            .addOnSuccessListener { document ->
-                if (document.exists()) {
-                    val user = document.toObject(User::class.java)
-                    callback(user, null)
-                } else {
-                    callback(null, "Usuario no encontrado")
-                }
-            }
-            .addOnFailureListener { e ->
-                callback(null, e.message)
-            }
-    }
-
-    fun updateUserProfile(
-        name: String,
-        idNumber: String,
-        phone: String,
-        newPassword: String,
-        onSuccess: () -> Unit,
-        onError: (String) -> Unit
-    ) {
-        val currentUser = auth.currentUser
-        if (currentUser == null) {
-            onError("Usuario no autenticado")
-            return
-        }
-
-        val uid = currentUser.uid
-        val updates = mapOf(
-            "name" to name,
-            "idNumber" to idNumber,
-            "phone" to phone
-        )
-
-        firestore.collection("users").document(uid)
-            .update(updates)
-            .addOnSuccessListener {
-                if (newPassword.isNotBlank()) {
-                    currentUser.updatePassword(newPassword)
-                        .addOnSuccessListener { onSuccess() }
-                        .addOnFailureListener { e -> onError(e.message ?: "Error al actualizar contraseña") }
-                } else {
-                    onSuccess()
-                }
-            }
-            .addOnFailureListener { e -> onError(e.message ?: "Error al actualizar perfil") }
-    }
-
-
     fun getCurrentUser(): FirebaseUser? = auth.currentUser
-
-    // Nueva función para obtener datos del usuario
-    fun getUserData(
-        uid: String,
-        onResult: (User) -> Unit,
-        onError: (String) -> Unit
-    ) {
-        firestore.collection("users").document(uid)
-            .get()
-            .addOnSuccessListener { doc ->
-                val user = doc.toObject(User::class.java)
-                if (user != null) onResult(user)
-                else onError("Usuario no encontrado")
-            }
-            .addOnFailureListener {
-                onError(it.message ?: "Error al cargar usuario")
-            }
-    }
-
-    // Nueva función para actualizar datos del usuario
-    fun updateUserData(
-        user: User,
-        newPassword: String?,
-        onSuccess: () -> Unit,
-        onError: (String) -> Unit
-    ) {
-        firestore.collection("users").document(user.uid)
-            .set(user)
-            .addOnSuccessListener {
-                if (!newPassword.isNullOrBlank()) {
-                    FirebaseAuth.getInstance().currentUser?.updatePassword(newPassword)
-                        ?.addOnSuccessListener { onSuccess() }
-                        ?.addOnFailureListener {
-                            onError(it.message ?: "No se pudo cambiar la contraseña")
-                        }
-                } else {
-                    onSuccess()
-                }
-            }
-            .addOnFailureListener {
-                onError(it.message ?: "Error al actualizar datos")
-            }
-    }
 }

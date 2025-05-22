@@ -64,12 +64,12 @@ class MainActivity : ComponentActivity() {
 
                         composable("editProfile") {
                             EditProfileScreen(
-                                viewModel = authViewModel,
                                 onProfileUpdated = {
                                     navController.popBackStack()
                                 }
                             )
                         }
+
                     }
                 }
             }

@@ -1,41 +1,76 @@
 package com.example.taller3.ui.screens
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import com.example.taller3.viewmodel.AuthViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
+import com.example.taller3.viewmodel.ProfileViewModel
+import com.google.firebase.ktx.Firebase
+import com.google.firebase.storage.ktx.storage
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.launch
+import java.util.*
 
 @Composable
 fun EditProfileScreen(
-    viewModel: AuthViewModel,
+    viewModel: ProfileViewModel = viewModel(),
     onProfileUpdated: () -> Unit
 ) {
-    val user = viewModel.getCurrentUser()
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val storageRef = remember { Firebase.storage.reference }
+
+    val user by viewModel.userData.collectAsState()
+    val loading by viewModel.loading.collectAsState()
+    val error by viewModel.error.collectAsState()
 
     var name by remember { mutableStateOf("") }
     var idNumber by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var photoUrl by remember { mutableStateOf<String?>(null) }
 
-    var loading by remember { mutableStateOf(false) }
-    var error by remember { mutableStateOf<String?>(null) }
+    // Lanzar efecto para cargar datos
+    LaunchedEffect(Unit) {
+        viewModel.loadUserProfile()
+    }
 
+    // Inicializar campos cuando llegan datos
+    LaunchedEffect(user) {
+        user?.let {
+            name = it.name
+            idNumber = it.idNumber
+            phone = it.phone
+            photoUrl = it.photoUrl
+        }
+    }
 
-    LaunchedEffect(user?.uid) {
-        user?.uid?.let { uid ->
-            viewModel.getUserData(uid) { fetchedUser, err ->
-                if (fetchedUser != null) {
-                    name = fetchedUser.name
-                    idNumber = fetchedUser.idNumber
-                    phone = fetchedUser.phone
-                } else {
-                    error = err ?: "Error al cargar datos"
+    // Lanzador para seleccionar imagen
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            scope.launch {
+                try {
+                    val fileName = "profile_images/${UUID.randomUUID()}.jpg"
+                    val imageRef = storageRef.child(fileName)
+                    imageRef.putFile(it).await()
+                    val downloadUrl = imageRef.downloadUrl.await().toString()
+                    photoUrl = downloadUrl
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    viewModel.setError("Error al subir imagen")
                 }
             }
         }
@@ -49,6 +84,25 @@ fun EditProfileScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text("Editar Perfil", style = MaterialTheme.typography.headlineMedium)
+
+            // Mostrar la foto de perfil actual
+            if (!photoUrl.isNullOrEmpty()) {
+                AsyncImage(
+                    model = photoUrl,
+                    contentDescription = "Foto de perfil",
+                    modifier = Modifier
+                        .size(96.dp)
+                        .clip(CircleShape)
+                        .align(Alignment.CenterHorizontally)
+                )
+            }
+
+            Button(
+                onClick = { imagePickerLauncher.launch("image/*") },
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            ) {
+                Text("Cambiar Foto")
+            }
 
             OutlinedTextField(
                 value = name,
@@ -74,34 +128,32 @@ fun EditProfileScreen(
             OutlinedTextField(
                 value = password,
                 onValueChange = { password = it },
-                label = { Text("Nueva Contraseña") },
+                label = { Text("Nueva Contraseña (opcional)") },
                 visualTransformation = PasswordVisualTransformation(),
                 modifier = Modifier.fillMaxWidth()
             )
 
             error?.let {
-                Text(text = it, color = MaterialTheme.colorScheme.error)
+                Text(
+                    text = it,
+                    color = MaterialTheme.colorScheme.error
+                )
             }
 
             Button(
                 onClick = {
-                    loading = true
-                    viewModel.updateUserProfile(
-                        name.trim(),
-                        idNumber.trim(),
-                        phone.trim(),
-                        password.trim(),
-                        onSuccess = {
-                            loading = false
-                            onProfileUpdated()
-                        },
-                        onError = {
-                            loading = false
-                            error = it
-                        }
+                    viewModel.updateProfile(
+                        name = name.trim(),
+                        idNumber = idNumber.trim(),
+                        phone = phone.trim(),
+                        password = password.trim().ifBlank { null },
+                        photoUrl = photoUrl,
+                        onSuccess = onProfileUpdated,
+                        onError = {}
                     )
                 },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !loading
             ) {
                 Text("Guardar cambios")
             }
