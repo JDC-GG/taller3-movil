@@ -1,5 +1,6 @@
 package com.example.taller3.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import com.example.taller3.model.User
 import com.google.firebase.auth.FirebaseAuth
@@ -21,9 +22,6 @@ class ProfileViewModel : ViewModel() {
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error
 
-    /**
-     * Establece un mensaje de error en el flujo.
-     */
     fun setError(message: String) {
         _error.value = message
     }
@@ -35,8 +33,11 @@ class ProfileViewModel : ViewModel() {
         val uid = auth.currentUser?.uid
         if (uid == null) {
             _error.value = "Usuario no autenticado"
+            Log.w("ProfileViewModel", "UID nulo al cargar perfil")
             return
         }
+
+        Log.d("ProfileViewModel", "Cargando perfil para UID: $uid")
 
         _loading.value = true
         firestore.collection("users").document(uid).get()
@@ -44,18 +45,21 @@ class ProfileViewModel : ViewModel() {
                 _loading.value = false
                 if (document.exists()) {
                     _userData.value = document.toObject(User::class.java)
+                    Log.d("ProfileViewModel", "Datos del usuario cargados correctamente")
                 } else {
                     _error.value = "Usuario no encontrado"
+                    Log.w("ProfileViewModel", "Documento no existe para UID: $uid")
                 }
             }
             .addOnFailureListener { e ->
                 _loading.value = false
                 _error.value = e.message ?: "Error al cargar datos"
+                Log.e("ProfileViewModel", "Error al obtener documento: ${e.message}", e)
             }
     }
 
     /**
-     * Actualiza los datos del usuario en Firestore y contraseña en Auth si corresponde.
+     * Actualiza los datos del usuario en Firestore y la contraseña en Auth si se provee.
      */
     fun updateProfile(
         name: String,
@@ -66,18 +70,21 @@ class ProfileViewModel : ViewModel() {
         onSuccess: () -> Unit,
         onError: (String) -> Unit
     ) {
-        val user = auth.currentUser ?: return onError("Usuario no autenticado")
-        val uid = user.uid
+        val user = auth.currentUser
+        if (user == null) {
+            onError("Usuario no autenticado")
+            Log.w("ProfileViewModel", "UID nulo al actualizar perfil")
+            return
+        }
 
+        val uid = user.uid
         val updates = mutableMapOf<String, Any>(
             "name" to name,
             "idNumber" to idNumber,
             "phone" to phone
         )
 
-        photoUrl?.let {
-            updates["photoUrl"] = it
-        }
+        photoUrl?.let { updates["photoUrl"] = it }
 
         _loading.value = true
 
@@ -89,19 +96,23 @@ class ProfileViewModel : ViewModel() {
                         .addOnSuccessListener {
                             _loading.value = false
                             onSuccess()
+                            Log.d("ProfileViewModel", "Perfil y contraseña actualizados")
                         }
                         .addOnFailureListener { e ->
                             _loading.value = false
                             onError(e.message ?: "Error al actualizar contraseña")
+                            Log.e("ProfileViewModel", "Error contraseña: ${e.message}", e)
                         }
                 } else {
                     _loading.value = false
                     onSuccess()
+                    Log.d("ProfileViewModel", "Perfil actualizado (sin contraseña)")
                 }
             }
             .addOnFailureListener { e ->
                 _loading.value = false
                 onError(e.message ?: "Error al actualizar perfil")
+                Log.e("ProfileViewModel", "Error Firestore: ${e.message}", e)
             }
     }
 }

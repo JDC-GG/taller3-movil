@@ -17,10 +17,16 @@ import com.example.taller3.ui.screens.HomeScreen
 import com.example.taller3.ui.screens.EditProfileScreen
 import com.example.taller3.viewmodel.AuthViewModel
 import com.example.taller3.ui.theme.taller3Theme
+import com.google.firebase.firestore.FirebaseFirestore
 
 class MainActivity : ComponentActivity() {
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Forzar a Firestore a modo online
+        // Es importante que la inicialización de Firebase ya haya ocurrido (ej. en tu Application o al inicio)
+        FirebaseFirestore.getInstance().enableNetwork()
 
         setContent {
             taller3Theme {

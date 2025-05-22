@@ -1,6 +1,7 @@
 package com.example.taller3.ui.screens
 
 import android.net.Uri
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
@@ -16,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.example.taller3.viewmodel.ProfileViewModel
+import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
 import com.google.firebase.storage.ktx.storage
 import kotlinx.coroutines.tasks.await
@@ -41,9 +43,16 @@ fun EditProfileScreen(
     var password by remember { mutableStateOf("") }
     var photoUrl by remember { mutableStateOf<String?>(null) }
 
-    // Lanzar efecto para cargar datos
-    LaunchedEffect(Unit) {
-        viewModel.loadUserProfile()
+    // Esperar a que el usuario esté autenticado
+    val currentUser = Firebase.auth.currentUser
+
+    LaunchedEffect(currentUser?.uid) {
+        if (currentUser != null) {
+            Log.d("EDIT_PROFILE", "UID activo: ${currentUser.uid}")
+            viewModel.loadUserProfile()
+        } else {
+            Log.w("EDIT_PROFILE", "FirebaseAuth.currentUser aún no está listo.")
+        }
     }
 
     // Inicializar campos cuando llegan datos
@@ -56,7 +65,7 @@ fun EditProfileScreen(
         }
     }
 
-    // Lanzador para seleccionar imagen
+    // Selector de imagen
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
@@ -68,6 +77,7 @@ fun EditProfileScreen(
                     imageRef.putFile(it).await()
                     val downloadUrl = imageRef.downloadUrl.await().toString()
                     photoUrl = downloadUrl
+                    Log.d("EDIT_PROFILE", "Imagen subida correctamente: $downloadUrl")
                 } catch (e: Exception) {
                     e.printStackTrace()
                     viewModel.setError("Error al subir imagen")
@@ -85,7 +95,6 @@ fun EditProfileScreen(
         ) {
             Text("Editar Perfil", style = MaterialTheme.typography.headlineMedium)
 
-            // Mostrar la foto de perfil actual
             if (!photoUrl.isNullOrEmpty()) {
                 AsyncImage(
                     model = photoUrl,
@@ -134,10 +143,7 @@ fun EditProfileScreen(
             )
 
             error?.let {
-                Text(
-                    text = it,
-                    color = MaterialTheme.colorScheme.error
-                )
+                Text(text = it, color = MaterialTheme.colorScheme.error)
             }
 
             Button(
@@ -149,7 +155,7 @@ fun EditProfileScreen(
                         password = password.trim().ifBlank { null },
                         photoUrl = photoUrl,
                         onSuccess = onProfileUpdated,
-                        onError = {}
+                        onError = { msg -> viewModel.setError(msg) }
                     )
                 },
                 modifier = Modifier.fillMaxWidth(),
